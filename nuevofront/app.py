@@ -148,6 +148,32 @@ def guardar_datos():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/calcular-puntaje', methods=['GET'])
+def calcular_puntaje():
+    try:
+        # Leer todos los archivos en la carpeta DATOS y filtrar los que siguen el formato Datos_#.txt
+        datos_files = sorted([f for f in os.listdir(datos_folder) if f.startswith('Datos_') and f.endswith('.txt')], reverse=True)
+
+        if not datos_files:
+            return jsonify({'error': 'No se encontraron archivos de datos.'}), 404
+
+        # Leer el archivo más reciente
+        latest_file = os.path.join(datos_folder, datos_files[0])
+        total_score = 0
+
+        with open(latest_file, 'r') as file:
+            for line in file:
+                if line.startswith('Puntuacion pregunta'):
+                    try:
+                        # Extraer la puntuación
+                        score = int(line.split(':')[-1].strip())
+                        total_score += score
+                    except ValueError:
+                        continue
+
+        return jsonify({'success': True, 'total_score': total_score}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5000)

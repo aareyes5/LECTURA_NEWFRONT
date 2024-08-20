@@ -1,6 +1,5 @@
 let currentQuestion = 0;
 const questions = [
-    "Pregunta 1: ¿Cómo te sientes hoy?",
     "Pregunta 2: ¿Has sentido tristeza recientemente?",
     "Pregunta 3: ¿Tienes dificultades para dormir?",
     "Pregunta 4: ¿Te sientes fatigado?",
@@ -22,6 +21,7 @@ const completionDialog = document.getElementById('completionDialog');
 const viewScoreBtn = document.getElementById('viewScoreBtn');
 const scoreDialog = document.getElementById('scoreDialog');
 const scoreDisplay = document.getElementById('scoreDisplay');
+viewScoreBtn.addEventListener('click', fetchAndDisplayScore);
 
 let mediaRecorderVideo;
 let mediaRecorderAudio;
@@ -179,3 +179,23 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error accessing webcam and microphone:', error);
     });
 });
+
+
+function fetchAndDisplayScore() {
+    fetch('/calcular-puntaje')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                scoreDisplay.textContent = `Puntaje Total: ${data.total_score}`;
+            } else {
+                scoreDisplay.textContent = 'Error al calcular el puntaje.';
+                console.error('Error:', data.error);
+            }
+        })
+        .catch(error => {
+            scoreDisplay.textContent = 'Error al conectar con el servidor.';
+            console.error('Error:', error);
+        });
+}
+
+// Llamar a esta función cuando se quiera ver el puntaje, por ejemplo, al hacer clic en el botón "Ver Puntaje"

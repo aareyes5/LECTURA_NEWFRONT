@@ -95,9 +95,9 @@ def save_score_if_not_exists(file_path, score_text):
             print(f"Archivo creado y puntuación '{score_text}' agregada.")
 
 if __name__ == "__main__":
-    video_folder = 'MP4/Videos/'
-    output_folder = 'MP4/Imagenes/'
-    datos_folder = 'MP4/Datos/'
+    video_folder = os.path.join(os.path.dirname(__file__), '../MP4/Videos/')
+    output_folder = os.path.join(os.path.dirname(__file__), '../MP4/Imagenes/')
+    datos_folder = os.path.join(os.path.dirname(__file__), '../MP4/Datos/')
 
     # Encontrar el archivo de datos más reciente que siga el formato Datos_(#).txt
     datos_files = [f for f in os.listdir(datos_folder) if f.startswith('Datos_') and f[6:-4].isdigit()]
