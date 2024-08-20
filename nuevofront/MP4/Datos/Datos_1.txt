@@ -1,0 +1,3 @@
+Género: 0
+Edad: 12
+Puntuacion pregunta 1: 2
