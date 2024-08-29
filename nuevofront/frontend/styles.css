@@ -46,3 +46,15 @@ body {
 .question {
     margin-bottom: 20px;
 }
+
+/* Media queries para adaptabilidad */
+@media (max-width: 768px) {
+    #app {
+        width: 100%;
+        padding: 10px;
+    }
+    
+    .modal-content {
+        width: 90%;
+    }
+}

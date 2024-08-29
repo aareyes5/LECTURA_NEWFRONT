@@ -7,11 +7,11 @@ from tensorflow.keras.models import load_model
 import joblib
 import numpy as np
 import os
+import sys
+from itertools import combinations
 
 sexo = None
 edad = None
-current_dir = os.path.dirname(os.path.abspath(__file__))
-ruta_puntaje = os.path.join(current_dir,'..',"..",'modulo_procesamiento','Puntaje','puntaje.txt')
 valores = []
 
 def leer_valores(ruta):
@@ -32,91 +32,134 @@ def escribir_valores(ruta, valores):
     with open(ruta, 'w') as archivo:
         for valor in valores:
             archivo.write(f"{valor}\n")
-            
-"""
-# Configuración de PyAudio
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 44100
-CHUNK = 1024
-WAVE_OUTPUT_FILENAME = "audio2.wav"
 
-# Inicializar PyAudio
-audio = pyaudio.PyAudio()
+def guardar_puntaje_en_datos(datos_file_path, puntaje, pregunta_num):
+    """Guarda el puntaje en el archivo de datos especificado."""
+    score_text = f"Puntuacion pregunta {pregunta_num}: {puntaje}"
+    save_score_if_not_exists(datos_file_path, score_text)
 
-# Función para grabar audio
-def grabar_audio():
-    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
-    frames = []
-    print("Grabando... Presiona 's' para detener.")
-    while True:
-        data = stream.read(CHUNK)
-        frames.append(data)
-        if keyboard.is_pressed('s'):
-            print("Grabación detenida.")
-            break
-    stream.stop_stream()
-    stream.close()
-    audio.terminate()
+def save_score_if_not_exists(file_path, score_text):
+    """Guarda el puntaje si no existe ya en el archivo."""
+    try:
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                if score_text in line:
+                    print(f"Puntuación '{score_text}' ya existe en el archivo.")
+                    return
 
-    # Guardar la grabación en un archivo WAV
-    waveFile = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
-    waveFile.setnchannels(CHANNELS)
-    waveFile.setsampwidth(audio.get_sample_size(FORMAT))
-    waveFile.setframerate(RATE)
-    waveFile.writeframes(b''.join(frames))
-    waveFile.close()
+        with open(file_path, 'a') as file:  # 'a' mode para añadir sin borrar
+            file.write(score_text + '\n')
+            print(f"Puntuación '{score_text}' agregada al archivo.")
 
-# Función para convertir audio a texto
+    except FileNotFoundError:
+        with open(file_path, 'w') as file:  # Si el archivo no existe, se crea
+            file.write(score_text + '\n')
+            print(f"Archivo creado y puntuación '{score_text}' agregada.")
+
 def audio_a_texto(file):
+    """Convierte el audio a texto usando el reconocimiento de Google. Si falla, retorna None."""
     r = sr.Recognizer()
-    with sr.AudioFile(file) as source:
-        audio_data = r.record(source)
-        texto = r.recognize_google(audio_data, language='es-ES')
-        return texto
-"""
+    try:
+        with sr.AudioFile(file) as source:
+            audio_data = r.record(source)
+            texto = r.recognize_google(audio_data, language='es-ES')
+            return texto
+    except sr.UnknownValueError:
+        print("No se pudo entender el audio.")
+        return None
+    except sr.RequestError as e:
+        print(f"Error con el servicio de reconocimiento de Google: {e}")
+        return None
+    except Exception as e:
+        print(f"Error inesperado al procesar el audio: {e}")
+        return None
 
 # Evaluar el texto y asignar un puntaje
 def evaluar_texto(texto):
-    # Palabras clave para cada nivel de tristeza
+    """Evalúa el texto y asigna un puntaje basado en palabras clave para la Pregunta 10 del MADRS."""
+    # Diccionario de niveles con palabras y frases clave
     niveles = {
-        0: ["sin pensamientos suicidas", "no tengo pensamientos suicidas"],
-        1: ["ligera preocupación", "ocasionalmente pienso en ello"],
-        2: ["pensamientos suicidas ocasionales", "pensamientos ligeros"],
-        3: ["pensamientos suicidas frecuentes", "preocupación constante"],
-        4: ["pensamientos suicidas graves", "deseos intensos de morir"],
-        5: ["pensamientos suicidas severos", "ideas persistentes"],
-        6: ["pensamientos suicidas extremos", "intención seria de suicidio", "grave desesperación"]
+        0: [
+            "sin pensamientos suicidas", 
+            "no tengo pensamientos suicidas", 
+            "nunca pienso en el suicidio", 
+            "no tengo intención de hacerme daño"
+        ],
+        1: [
+            "ligera preocupación", 
+            "ocasionalmente pienso en ello", 
+            "a veces pienso en el suicidio", 
+            "a veces me siento mal", 
+            "ligera desesperanza", 
+            "me siento mal, pero no al grado de pensar en suicidio"
+        ],
+        2: [
+            "pensamientos suicidas ocasionales", 
+            "pienso en el suicidio, pero no lo haría", 
+            "pensamientos suicidas ligeros", 
+            "me siento sin salida a veces", 
+            "deseos leves de desaparecer", 
+            "me encuentro pensando en el suicidio de vez en cuando"
+        ],
+        3: [
+            "pensamientos suicidas frecuentes", 
+            "preocupación constante por mi vida", 
+            "pensamientos suicidas moderados", 
+            "me siento atrapado con frecuencia", 
+            "frecuentes pensamientos de quitarme la vida", 
+            "a menudo pienso en el suicidio"
+        ],
+        4: [
+            "pensamientos suicidas graves", 
+            "deseos intensos de morir", 
+            "deseo de terminar con mi vida", 
+            "graves pensamientos de suicidio", 
+            "pensamientos recurrentes de terminar con todo", 
+            "pienso mucho en quitarme la vida"
+        ],
+        5: [
+            "pensamientos suicidas severos", 
+            "ideas persistentes de suicidio", 
+            "intención seria de suicidio", 
+            "desesperación profunda", 
+            "deseos intensos de acabar con mi vida", 
+            "pienso constantemente en morir"
+        ],
+        6: [
+            "pensamientos suicidas extremos", 
+            "intención clara de suicidio", 
+            "quiero morir", 
+            "no veo otra salida", 
+            "quiero acabar con mi vida", 
+            "planifico cómo quitarme la vida", 
+            "estoy decidido a terminar con todo"
+        ]
     }
-    palabras = texto.split()  # Dividir el texto en palabras
+
+    # Convertir texto a minúsculas y dividir en palabras
+    palabras = texto.lower().split()
     max_nivel = 0
 
-    # Análisis de palabras individuales
-    for palabra in palabras:
-        for nivel, palabras_clave in niveles.items():
-            if palabra in palabras_clave:
-                if nivel > max_nivel:
-                    max_nivel = nivel
-
-    # Análisis de combinaciones de 2 a n palabras
-    for n in range(2, len(palabras) + 1):
-        for comb in combinations(palabras, n):
-            frase = ' '.join(comb)
-            for nivel, palabras_clave in niveles.items():
-                for palabra_clave in palabras_clave:
-                    if palabra_clave in frase:
-                        if nivel > max_nivel:
-                            max_nivel = nivel
+    # Detección de palabras individuales y combinaciones de palabras
+    for nivel, palabras_clave in niveles.items():
+        # Verificar si alguna palabra clave está en el texto
+        if any(palabra in palabras for palabra in palabras_clave):
+            max_nivel = max(max_nivel, nivel)
+        # Verificar combinaciones de palabras
+        for n in range(2, len(palabras) + 1):
+            for comb in combinations(palabras, n):
+                frase = ' '.join(comb)
+                if any(palabra_clave in frase for palabra_clave in palabras_clave):
+                    max_nivel = max(max_nivel, nivel)
 
     return max_nivel
 
-# Cargar el modelo y el scaler
-current_dir = os.path.dirname(os.path.abspath(__file__))
-ruta_red = os.path.join(current_dir,'..','..','modulo_procesamiento','Red','madrs_model.h5')
-model = load_model(ruta_red)
 
-ruta_scaler = os.path.join(current_dir,'scaler.pkl')
-scaler = joblib.load(ruta_scaler)
+# Cargar el modelo y el scaler
+ruta_red = os.path.join(os.path.dirname(__file__),'..','Red','madrs_model.h5')
+model = load_model(ruta_red)
+scaler = joblib.load(os.path.join(os.path.dirname(__file__),'scaler.pkl'))
 
 # Función para predecir el puntaje de la Pregunta 10
 def predecir_puntaje(edad, sexo, puntaje10):
@@ -151,27 +194,61 @@ texto = audio_a_texto(WAVE_OUTPUT_FILENAME)
 print(f'Texto del audio: {texto}')
 """
 
-# Evaluar el texto
-current_dir = os.path.dirname(os.path.abspath(__file__))
-ruta_texto = os.path.join(current_dir,"..","..","modulos_seniales","Audios","AudioPregunta_10.txt")
-puntaje_inicial = evaluar_texto(ruta_texto)
-print(f'Puntaje evaluado de la Pregunta 10: {puntaje_inicial}')
+def leer_genero_edad(datos_folder):
+    """Leer género y edad del archivo más reciente en la carpeta DATOS."""
+    datos_files = sorted([f for f in os.listdir(datos_folder) if f.startswith('Datos_') and f.endswith('.txt')], reverse=True)
 
-"""
-# Obtener edad y sexo del usuario
-edad = int(input("Ingrese la edad: "))
-sexo = int(input("Ingrese el sexo (0 para Femenino, 1 para Masculino): "))
-"""
-#obtener los valores del arreglo puntaje
-valores = leer_valores(ruta_puntaje)
-edad = valores[0]
-sexo = valores[1]
+    if not datos_files:
+        return None, None  # No se encontraron archivos de datos
 
-# Predecir el puntaje usando el modelo entrenado
-puntaje_predicho = predecir_puntaje(edad, sexo, puntaje_inicial)
-print(f'Puntaje predicho para la Pregunta 10: {puntaje_predicho}')
+    latest_file = os.path.join(datos_folder, datos_files[0])
 
-#escribir puntaje en archivo
-valores.append(puntaje_predicho)
-escribir_valores(ruta_puntaje, valores)
+    genero = None
+    edad = None
 
+    with open(latest_file, 'r') as file:
+        for line in file:
+            if line.startswith('Género:'):
+                genero = line.split(':')[1].strip()
+            elif line.startswith('Edad:'):
+                edad = line.split(':')[1].strip()
+
+    return genero, edad  
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Uso: python Audio2.py <uuid> <ruta_datos>")
+        sys.exit(1)
+
+    user_uuid = sys.argv[1]
+    datos_folder = os.path.join(os.path.dirname(__file__), '../../MP4',user_uuid,'Datos/')
+    audio_folder = os.path.join(os.path.dirname(__file__), '../../MP4',user_uuid,'Audios/')
+
+    # Identificar el archivo de datos más reciente o crear uno nuevo
+    datos_files = [f for f in os.listdir(datos_folder) if f.startswith('Datos_') and f.endswith('.txt')]
+    if datos_files:
+        datos_files.sort(key=lambda f: int(f.split('_')[1].split('.')[0]))  # Ordenar por el número en el nombre del archivo
+        datos_file_path = os.path.join(datos_folder, datos_files[-1])  # Archivo más reciente
+    else:
+        datos_file_path = os.path.join(datos_folder, 'Datos_1.txt')  # Crear uno nuevo si no existe
+
+    audio_filename = os.path.join(audio_folder, f'Audio_10.wav')
+
+    texto = audio_a_texto(audio_filename)
+    if texto is None:
+        puntaje_inicial = 3  # Asignar puntuación predeterminada en caso de falla
+        print("Falla en la conversión de audio a texto. Puntuación predeterminada asignada: 3")
+    else:
+        puntaje_inicial = evaluar_texto(texto)
+        print(f'Puntaje evaluado de la Pregunta 10: {puntaje_inicial}')
+    
+   
+
+    valores = leer_valores(datos_file_path)
+    sexo, edad = leer_genero_edad(datos_folder)
+
+    puntaje_predicho = predecir_puntaje(edad, sexo, puntaje_inicial)
+    print(f'Puntaje predicho para la Pregunta 10: {puntaje_predicho}')
+
+    # Guardar el puntaje en el archivo de datos del usuario sin borrar los datos existentes
+    guardar_puntaje_en_datos(datos_file_path, puntaje_predicho, pregunta_num=10)

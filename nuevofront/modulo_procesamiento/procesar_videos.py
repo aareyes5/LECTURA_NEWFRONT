@@ -1,6 +1,9 @@
+#procesar_videos.py
 import cv2
 import os
 from deepface import DeepFace
+import uuid
+import sys
 
 class FrameExtractor:
     def __init__(self, video_folder, output_folder, frame_skip=12, image_extension=('.jpg')):
@@ -95,9 +98,17 @@ def save_score_if_not_exists(file_path, score_text):
             print(f"Archivo creado y puntuación '{score_text}' agregada.")
 
 if __name__ == "__main__":
-    video_folder = os.path.join(os.path.dirname(__file__), '../MP4/Videos/')
-    output_folder = os.path.join(os.path.dirname(__file__), '../MP4/Imagenes/')
-    datos_folder = os.path.join(os.path.dirname(__file__), '../MP4/Datos/')
+   
+    if len(sys.argv) < 2:
+        print("Error: UUID not provided.")
+        sys.exit(1)
+
+    user_uuid = sys.argv[1]
+   
+   
+    video_folder = os.path.join(os.path.dirname(__file__), '../MP4',user_uuid,'Videos/')
+    output_folder = os.path.join(os.path.dirname(__file__), '../MP4',user_uuid,'Imagenes/')
+    datos_folder = os.path.join(os.path.dirname(__file__), '../MP4',user_uuid,'Datos/')
 
     # Encontrar el archivo de datos más reciente que siga el formato Datos_(#).txt
     datos_files = [f for f in os.listdir(datos_folder) if f.startswith('Datos_') and f[6:-4].isdigit()]

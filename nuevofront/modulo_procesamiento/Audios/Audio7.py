@@ -7,12 +7,11 @@ from tensorflow.keras.models import load_model
 import joblib
 import numpy as np
 import os
+import sys
+from itertools import combinations
 
 sexo = None
 edad = None
-current_dir = os.path.dirname(os.path.abspath(__file__))
-ruta_puntaje = os.path.join(current_dir,'..',"..",'modulo_procesamiento','Puntaje','puntaje.txt')
-
 valores = []
 
 def leer_valores(ruta):
@@ -33,50 +32,37 @@ def escribir_valores(ruta, valores):
     with open(ruta, 'w') as archivo:
         for valor in valores:
             archivo.write(f"{valor}\n")
-            
-"""
-# Configuración de PyAudio
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 44100
-CHUNK = 1024
-WAVE_OUTPUT_FILENAME = "audio2.wav"
 
-# Inicializar PyAudio
-audio = pyaudio.PyAudio()
+def guardar_puntaje_en_datos(datos_file_path, puntaje, pregunta_num):
+    """Guarda el puntaje en el archivo de datos especificado."""
+    score_text = f"Puntuacion pregunta {pregunta_num}: {puntaje}"
+    save_score_if_not_exists(datos_file_path, score_text)
 
-# Función para grabar audio
-def grabar_audio():
-    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
-    frames = []
-    print("Grabando... Presiona 's' para detener.")
-    while True:
-        data = stream.read(CHUNK)
-        frames.append(data)
-        if keyboard.is_pressed('s'):
-            print("Grabación detenida.")
-            break
-    stream.stop_stream()
-    stream.close()
-    audio.terminate()
+def save_score_if_not_exists(file_path, score_text):
+    """Guarda el puntaje si no existe ya en el archivo."""
+    try:
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                if score_text in line:
+                    print(f"Puntuación '{score_text}' ya existe en el archivo.")
+                    return
 
-    # Guardar la grabación en un archivo WAV
-    waveFile = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
-    waveFile.setnchannels(CHANNELS)
-    waveFile.setsampwidth(audio.get_sample_size(FORMAT))
-    waveFile.setframerate(RATE)
-    waveFile.writeframes(b''.join(frames))
-    waveFile.close()
+        with open(file_path, 'a') as file:  # 'a' mode para añadir sin borrar
+            file.write(score_text + '\n')
+            print(f"Puntuación '{score_text}' agregada al archivo.")
 
-# Función para convertir audio a texto
+    except FileNotFoundError:
+        with open(file_path, 'w') as file:  # Si el archivo no existe, se crea
+            file.write(score_text + '\n')
+            print(f"Archivo creado y puntuación '{score_text}' agregada.")
+
 def audio_a_texto(file):
     r = sr.Recognizer()
     with sr.AudioFile(file) as source:
         audio_data = r.record(source)
         texto = r.recognize_google(audio_data, language='es-ES')
         return texto
-"""
-
 # Evaluar el texto y asignar un puntaje
 def evaluar_texto(texto):
     # Palabras clave para cada nivel de tristeza
@@ -89,7 +75,8 @@ def evaluar_texto(texto):
         5: ["totalmente desmotivado", "falta de interés extrema", "sin energía"],
         6: ["completamente sin interés", "desesperanza total", "falta de motivación grave"]
     }
-    palabras = texto.split()  # Dividir el texto en palabras
+    
+    palabras = texto.lower().split()
     max_nivel = 0
 
     # Análisis de palabras individuales
@@ -112,12 +99,9 @@ def evaluar_texto(texto):
     return max_nivel
 
 # Cargar el modelo y el scaler
-current_dir = os.path.dirname(os.path.abspath(__file__))
-ruta_red = os.path.join(current_dir,'..','..','modulo_procesamiento','Red','madrs_model.h5')
+ruta_red = os.path.join(os.path.dirname(__file__),'..','Red','madrs_model.h5')
 model = load_model(ruta_red)
-
-ruta_scaler = os.path.join(current_dir,'scaler.pkl')
-scaler = joblib.load(ruta_scaler)
+scaler = joblib.load(os.path.join(os.path.dirname(__file__),'scaler.pkl'))
 
 # Función para predecir el puntaje de la Pregunta 7
 def predecir_puntaje(edad, sexo, puntaje7):
@@ -152,27 +136,57 @@ texto = audio_a_texto(WAVE_OUTPUT_FILENAME)
 print(f'Texto del audio: {texto}')
 """
 
-# Evaluar el texto
-current_dir = os.path.dirname(os.path.abspath(__file__))
-ruta_texto = os.path.join(current_dir,"..","..","modulos_seniales","Audios","AudioPregunta_7.txt")
-puntaje_inicial = evaluar_texto(ruta_texto)
-print(f'Puntaje evaluado de la Pregunta 7: {puntaje_inicial}')
+def leer_genero_edad(datos_folder):
+    """Leer género y edad del archivo más reciente en la carpeta DATOS."""
+    datos_files = sorted([f for f in os.listdir(datos_folder) if f.startswith('Datos_') and f.endswith('.txt')], reverse=True)
 
-"""
-# Obtener edad y sexo del usuario
-edad = int(input("Ingrese la edad: "))
-sexo = int(input("Ingrese el sexo (0 para Femenino, 1 para Masculino): "))
-"""
-#obtener los valores del arreglo puntaje
-valores = leer_valores(ruta_puntaje)
-edad = valores[0]
-sexo = valores[1]
+    if not datos_files:
+        return None, None  # No se encontraron archivos de datos
 
-# Predecir el puntaje usando el modelo entrenado
-puntaje_predicho = predecir_puntaje(edad, sexo, puntaje_inicial)
-print(f'Puntaje predicho para la Pregunta 7: {puntaje_predicho}')
+    latest_file = os.path.join(datos_folder, datos_files[0])
 
-#escribir puntaje en archivo
-valores.append(puntaje_predicho)
-escribir_valores(ruta_puntaje, valores)
+    genero = None
+    edad = None
+
+    with open(latest_file, 'r') as file:
+        for line in file:
+            if line.startswith('Género:'):
+                genero = line.split(':')[1].strip()
+            elif line.startswith('Edad:'):
+                edad = line.split(':')[1].strip()
+
+    return genero, edad  
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Uso: python Audio2.py <uuid> <ruta_datos>")
+        sys.exit(1)
+
+    user_uuid = sys.argv[1]
+    datos_folder = os.path.join(os.path.dirname(__file__), '../../MP4',user_uuid,'Datos/')
+    audio_folder = os.path.join(os.path.dirname(__file__), '../../MP4',user_uuid,'Audios/')
+
+    # Identificar el archivo de datos más reciente o crear uno nuevo
+    datos_files = [f for f in os.listdir(datos_folder) if f.startswith('Datos_') and f.endswith('.txt')]
+    if datos_files:
+        datos_files.sort(key=lambda f: int(f.split('_')[1].split('.')[0]))  # Ordenar por el número en el nombre del archivo
+        datos_file_path = os.path.join(datos_folder, datos_files[-1])  # Archivo más reciente
+    else:
+        datos_file_path = os.path.join(datos_folder, 'Datos_1.txt')  # Crear uno nuevo si no existe
+
+    audio_filename = os.path.join(audio_folder, f'Audio_7.wav')
+
+    texto = audio_a_texto(audio_filename)
+    puntaje_inicial = evaluar_texto(texto)
+    print(f'Puntaje evaluado de la Pregunta 7: {puntaje_inicial}')
+
+    valores = leer_valores(datos_file_path)
+    sexo, edad = leer_genero_edad(datos_folder)
+
+    puntaje_predicho = predecir_puntaje(edad, sexo, puntaje_inicial)
+    print(f'Puntaje predicho para la Pregunta 7: {puntaje_predicho}')
+
+    # Guardar el puntaje en el archivo de datos del usuario sin borrar los datos existentes
+    guardar_puntaje_en_datos(datos_file_path, puntaje_predicho, pregunta_num=7)
+
 

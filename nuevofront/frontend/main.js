@@ -1,14 +1,14 @@
 let currentQuestion = 0;
 const questions = [
-    "Pregunta 2: ¿Has sentido tristeza recientemente?",
-    "Pregunta 3: ¿Tienes dificultades para dormir?",
-    "Pregunta 4: ¿Te sientes fatigado?",
-    "Pregunta 5: ¿Tienes pensamientos negativos?",
-    "Pregunta 6: ¿Has perdido interés en actividades que solías disfrutar?",
-    "Pregunta 7: ¿Te sientes ansioso?",
-    "Pregunta 8: ¿Has tenido cambios en el apetito?",
-    "Pregunta 9: ¿Te sientes desesperanzado?",
-    "Pregunta 10: ¿Has considerado hacerte daño?"
+    "Pregunta 2: ¿Cómo te has sentido emocionalmente en los últimos días? ¿Has experimentado alguna de las siguientes emociones: felicidad, tristeza o desesperación?",
+    "Pregunta 3: ¿Con qué frecuencia te sientes ansioso o preocupado por situaciones cotidianas?",
+    "Pregunta 4: ¿Has experimentado problemas de sueño, como dificultad para conciliar el sueño, despertarte durante la noche o insomnio severo?",
+    "Pregunta 5: ¿Has notado cambios en tu apetito, como una disminución significativa del apetito o una pérdida completa de interés en la comida?",
+    "Pregunta 6: ¿Tienes dificultades para concentrarte en tus actividades diarias o encontrar que tu mente divaga con frecuencia?",
+    "Pregunta 7: ¿Sientes que has perdido interés o motivación en actividades que solías disfrutar?",
+    "Pregunta 8: ¿Te encuentras menos interesado en las actividades diarias o sientes una disminución en tu participación en actividades que solías disfrutar?",
+    "Pregunta 9: ¿Has tenido pensamientos negativos frecuentes, como sentirte sin esperanza o desesperado?",
+    "Pregunta 10: ¿Has tenido pensamientos de autolesión o suicidio, incluso si no tienes la intención de actuar sobre ellos?"
 ];
 
 const videoElement = document.getElementById('videoElement');
@@ -21,6 +21,7 @@ const completionDialog = document.getElementById('completionDialog');
 const viewScoreBtn = document.getElementById('viewScoreBtn');
 const scoreDialog = document.getElementById('scoreDialog');
 const scoreDisplay = document.getElementById('scoreDisplay');
+
 viewScoreBtn.addEventListener('click', fetchAndDisplayScore);
 
 let mediaRecorderVideo;
@@ -31,6 +32,7 @@ let audioChunks = [];
 function startTest() {
     currentQuestion = 0;
     userFormDialog.style.display = 'flex';
+    
 }
 
 function showQuestion() {
@@ -180,7 +182,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-
 function fetchAndDisplayScore() {
     fetch('/calcular-puntaje')
         .then(response => response.json())
@@ -197,5 +198,3 @@ function fetchAndDisplayScore() {
             console.error('Error:', error);
         });
 }
-
-// Llamar a esta función cuando se quiera ver el puntaje, por ejemplo, al hacer clic en el botón "Ver Puntaje"
